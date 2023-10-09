@@ -1,0 +1,88 @@
+# Copyright Istio Authors
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+##################################################################################################
+# Details service v2
+##################################################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: details-v2
+  labels:
+    app: details
+    version: v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: details
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: details
+        version: v2
+    spec:
+      containers:
+      - name: details
+        image: ciscodevcloud/examples-bookinfo-details-v2:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9080
+        env:
+          - name: APPD_APP_NAME
+            valueFrom:
+              configMapKeyRef:
+                key: APPDYNAMICS_AGENT_APPLICATION_NAME
+                name: appd-agent-envs
+          - name: APPD_TIER_NAME
+            value: details
+          - name: APPD_NODE_NAME
+            value: details-v2
+          - name: APPD_CONTROLLER_HOST
+            valueFrom:
+              configMapKeyRef:
+                key: APPDYNAMICS_CONTROLLER_HOST_NAME
+                name: appd-agent-envs
+          - name: APPD_CONTROLLER_PORT
+            value: "443"
+          - name: APPD_CONTROLLER_USE_SSL
+            value: "true"
+          - name: APPD_CONTROLLER_ACCOUNT
+            valueFrom:
+              configMapKeyRef:
+                key: APPDYNAMICS_AGENT_ACCOUNT_NAME
+                name: appd-agent-envs
+          - name: APPD_CONTROLLER_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                key: access-key
+                name: appd-agent-secret
+          - name: APPD_CONTROLLER_LOG_DIR
+            value: /tmp/appd/
+          - name: APPD_NODEINDEX_PATH
+            value: "/tmp/appdynamics/nodeindex"
+          - name: DO_NOT_ENCRYPT
+            value: "true"
+        securityContext:
+          runAsUser: 1000
+        volumeMounts:
+        - name: appdynamics-conf
+          mountPath: /config
+          readOnly: true
+      volumes:
+        - name: appdynamics-conf
+          configMap:
+            name: appdynamics-conf
+---

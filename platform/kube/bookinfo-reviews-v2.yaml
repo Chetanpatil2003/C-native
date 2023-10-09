@@ -1,0 +1,93 @@
+# Copyright Istio Authors
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+##################################################################################################
+# Reviews service v2
+##################################################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reviews-v2
+  labels:
+    app: reviews
+    version: v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reviews
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: reviews
+        version: v2
+    spec:
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: reviews
+        image: ciscodevcloud/examples-bookinfo-reviews-v2:1.0.0
+        imagePullPolicy: IfNotPresent
+        envFrom:
+        - configMapRef:
+            name: appd-agent-envs
+        env:
+        - name: LOG_DIR
+          value: "/tmp/logs"
+        - name: APPDYNAMICS_AGENT_TIER_NAME
+          value: "review-service"
+        - name: APPDYNAMICS_AGENT_NODE_NAME
+          value: "review-service-v2"
+        - name: APPDYNAMICS_AGENT_ACCOUNT_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: appd-agent-secret
+              key: access-key
+        ports:
+        - containerPort: 9080
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: wlp-output
+          mountPath: /opt/ibm/wlp/output
+        - name: appd-agent-repo
+          mountPath: /opt/appdynamics
+        - name: appd-java-agent-log-config
+          mountPath: /opt/appdynamics/ver20.8.0.30686/conf/logging
+        securityContext:
+          runAsUser: 1000
+      volumes:
+      - name: wlp-output
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
+      - name: appd-agent-repo
+        emptyDir: {}
+      - name: appd-java-agent-log-config
+        configMap:
+          name: appd-java-agent-log-config
+      initContainers:
+      - command:
+        - cp
+        - -r
+        - /opt/appdynamics/.
+        - /opt/temp
+        name: appd-agent
+        image: docker.io/appdynamics/java-agent:20.8.0
+        volumeMounts:
+        - mountPath: /opt/temp
+          name: appd-agent-repo
+---
