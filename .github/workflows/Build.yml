@@ -1,85 +1,37 @@
-name: Build and Push Docker Images
+name: Build, Push, and Update Docker Images
 
 on:
   push:
     branches:
-      - main
+      - main  # Change this to your main branch name
 
 jobs:
-  build_images:
-    name: Build and Push Microservice Docker Images
+  build-push-update:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v2
+    - name: Checkout Repository
+      uses: actions/checkout@v2
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
 
-      - name: Build and push Posts Microservice Docker image
-        uses: docker/build-push-action@v2
-        with:
-          context: ./src/details
-          push: true
-          tags: chetanpatil2003/details:${{ github.sha }}
+    - name: Build and Push Docker Images
+      env:
+        DOCKER_REGISTRY: docker.io/chetanpatil@2003  # Replacchetanpatil2003 e with your Docker registry
+        IMAGE_VERSION: 1.16.3  # Replace with your desired image version
+      run: |
+        cd samples/bookinfo
+        src/build-services.sh ${{ env.IMAGE_VERSION }} ${{ env.DOCKER_REGISTRY }}
+        # Push the images to Docker Hub
+        docker push ${{ env.DOCKER_REGISTRY }}/examples-bookinfo-ratings-v2:${{ env.IMAGE_VERSION }}
+        docker push ${{ env.DOCKER_REGISTRY }}/examples-bookinfo-ratings-v2:latest
 
-      - name: Build and push Threads Microservice Docker image
-        uses: docker/build-push-action@v2
-        with:
-          context: ./src/mongodb
-          push: true
-          tags: chetanpatil2003/mongodb:${{ github.sha }}
+    - name: Update YAML Files
+      env:
+        IMAGE_VERSION: 1.16.3  # Replace with your desired image version
+      run: |
+        sed -i "s//${{ env.IMAGE_VERSION }}/g" platform/kube/bookinfo*.yaml
 
-      - name: Build and push Users Microservice Docker image
-        uses: docker/build-push-action@v2
-        with:
-          context: ./src/mysql
-          push: true
-          tags: chetanpatil2003/mysql:${{ github.sha }}
-
-      - name: Build and push Users Microservice Docker image
-        uses: docker/build-push-action@v2
-        with:
-          context: ./src/productpage
-          push: true
-          tags: chetanpatil2003/productpage:${{ github.sha }}
-
-      - name: Build and push Users Microservice Docker image
-        uses: docker/build-push-action@v2
-        with:
-          context: ./src/ratings
-          push: true
-          tags: chetanpatil2003/ratings:${{ github.sha }}
-    
-      - name: Build and push Users Microservice Docker image
-        uses: docker/build-push-action@v2
-        with:
-          context: ./src/review/review-wlpcfg
-          push: true
-          tags: chetanpatil2003/review:${{ github.sha }}
     
 
-  # deploy:
-  #   needs: build_test
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: deploying to EC2
-  #       uses: actions/checkout@v2
-  #       with: 
-  #        host: {{secrets.EC2_HOST}}
-  #        username: {{secrets.EC2_USERNAME}}
-  #        key: {{secrets.EC2_PRIVATE_KEY}}
-  #        script:  
-  #           docker pull chetanpatil2003/posts-service:{{ github.sha }}
-  #           docker pull chetanpatil2003/threads-service:{{ github.sha }}
-  #           docker pull chetanpatil2003/users-service:{{ github.sha }}
-  #           docker rm -f posts-service-container
-  #           docker rm -f threads-service-container
-  #           docker rm -f users-service-container
-  #           docker run -d --name posts-service -p 8081:3000 chetanpatil2003/posts-service:{{ github.sha }}
-  #           docker run -d --name threads-service -p 8082:3000 chetanpatil2003/threads-service:{{ github.sha }}
-  #           docker run -d --name users-service -p 8083:3000 chetanpatil2003/users-service:{{ github.sha }}
